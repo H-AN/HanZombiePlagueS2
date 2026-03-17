@@ -21,7 +21,7 @@
 			},
 			"Models": 
 			{
-			  "ModelPath": "characters/models/basebuilder/zombie_gravity/zombie_gravity.vmdl",
+			  "ModelPath": "characters/models/hoshistar/zombiezeta/normalhost/normalhost.vmdl",
 			  "CustomKinfeModelPath": ""
 			},
 			"Sounds": 
@@ -59,7 +59,7 @@
 			},
 			"Models": 
 			{
-			  "ModelPath": "characters/models/hmn_sk2/zombie/hl2_zombie/hl2_zombie_sk2model.vmdl",
+			  "ModelPath": "characters/models/rss/demogorgon/demogorgon.vmdl",
 			  "CustomKinfeModelPath": ""
 			},
 			"Sounds": 
