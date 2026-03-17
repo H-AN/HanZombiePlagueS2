@@ -18,6 +18,8 @@
 
 ## video
 https://www.youtube.com/watch?v=DVeR5u28M_s
+
+If you encounter client crashes, you can use https://github.com/H-AN/HZPFixes to reduce the probability of crashes.
 </div>
 
 ---
