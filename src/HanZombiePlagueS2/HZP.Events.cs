@@ -1130,8 +1130,12 @@ public partial class HZPEvents
         string inflictorname = inflictor.DesignerName;
 
         float force = CFG.KnockZombieForce;
-        _helpers.KnockBackZombie(AttackerPlayer, victimPlayer, inflictorname, force, isheadshot, CFG);
-        
+
+        _globals.GodState.TryGetValue(victimId, out bool IsGodState);
+        if (!IsGodState)
+        {
+            _helpers.KnockBackZombie(AttackerPlayer, victimPlayer, inflictorname, force, isheadshot, CFG);
+        }
     }
 
     private HookResult OnHumanWeaponFire(EventWeaponFire @event)
