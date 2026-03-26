@@ -63,6 +63,21 @@ public class HZPGlobals
     public Dictionary<int, bool> GodState = new Dictionary<int, bool>();
     public Dictionary<int, bool> InfiniteAmmoState = new Dictionary<int, bool>();
 
+    public readonly HashSet<string> LegacyZombieCustomNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "TVirusGrenade"
+    };
+
+    public readonly HashSet<string> LegacyHumanCustomNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FireGrenade",
+        "FreezeGrenade",
+        "LightGrenade",
+        "TeleprotGrenade",
+        "Incgrenade"
+    };
+
+
 
 }
 public class ZombieRegenState

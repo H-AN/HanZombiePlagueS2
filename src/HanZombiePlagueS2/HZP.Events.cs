@@ -718,17 +718,20 @@ public partial class HZPEvents
     public void Event_OnWeaponServicesCanUseHook(IOnWeaponServicesCanUseHookEvent @event)
     {
         var weapon = @event.Weapon;
-        var weaponName = weapon?.Entity?.DesignerName; 
-        var customname = weapon?.AttributeManager.Item.CustomName;
+        var weaponName = weapon?.Entity?.DesignerName;
+        var customName = weapon?.AttributeManager.Item.CustomName;
 
         var pawn = @event.WeaponServices.Pawn;
-        if (pawn == null || !pawn.IsValid) return;
+        if (pawn == null || !pawn.IsValid)
+            return;
 
         var controller = pawn.Controller.Value?.As<CCSPlayerController>();
-        if (controller == null || !controller.IsValid) return;
+        if (controller == null || !controller.IsValid)
+            return;
 
-        var Player = _core.PlayerManager.GetPlayer((int)(controller.Index - 1));
-        if (Player == null || !Player.IsValid) return;
+        var player = _core.PlayerManager.GetPlayer((int)(controller.Index - 1));
+        if (player == null || !player.IsValid)
+            return;
 
         if (weaponName == "weapon_c4")
         {
@@ -736,38 +739,40 @@ public partial class HZPEvents
             return;
         }
 
-        _globals.IsZombie.TryGetValue(Player.PlayerID, out bool isZombie);
+        _globals.IsZombie.TryGetValue(player.PlayerID, out bool isZombie);
+
         if (isZombie)
         {
-            if (weaponName != "weapon_knife" && customname != "TVirusGrenade")
+            bool allowZombieItem =
+                weaponName == "weapon_knife"
+                || _globals.LegacyZombieCustomNames.Contains(customName ?? string.Empty)
+                || _helpers.HasCustomPrefix(customName, "zombie_");
+
+            if (!allowZombieItem)
             {
                 @event.SetResult(false);
             }
+
+            return;
         }
-        else
+
+        bool isGrenade =
+            weaponName == "weapon_hegrenade"
+            || weaponName == "weapon_flashbang"
+            || weaponName == "weapon_decoy"
+            || weaponName == "weapon_incgrenade"
+            || weaponName == "weapon_smokegrenade"
+            || weaponName == "weapon_molotov";
+
+        if (isGrenade)
         {
+            bool allowHumanGrenade =
+                _globals.LegacyHumanCustomNames.Contains(customName ?? string.Empty)
+                || _helpers.HasCustomPrefix(customName, "human_");
 
-            bool isGrenade = weaponName == "weapon_hegrenade"
-                     || weaponName == "weapon_flashbang"
-                     || weaponName == "weapon_decoy"
-                     || weaponName == "weapon_incgrenade"
-                     || weaponName == "weapon_smokegrenade";
-
-            if (isGrenade)
+            if (!allowHumanGrenade)
             {
-                var allowedHumanGrenades = new HashSet<string> 
-                { 
-                    "FireGrenade", 
-                    "FreezeGrenade", 
-                    "LightGrenade", 
-                    "TeleprotGrenade", 
-                    "Incgrenade" 
-                };
-
-                if (string.IsNullOrEmpty(customname) || !allowedHumanGrenades.Contains(customname))
-                {
-                    @event.SetResult(false);
-                }
+                @event.SetResult(false);
             }
         }
     }

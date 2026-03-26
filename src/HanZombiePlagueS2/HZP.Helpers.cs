@@ -1228,6 +1228,13 @@ public partial class HZPHelpers
         });
     }
 
-    
+    public bool HasCustomPrefix(string? customName, string prefix)
+    {
+        return !string.IsNullOrWhiteSpace(customName)
+            && customName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+
 
 }
