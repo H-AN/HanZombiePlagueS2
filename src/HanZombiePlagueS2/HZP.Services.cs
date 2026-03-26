@@ -279,7 +279,7 @@ public partial class HZPServices
         string Default = "characters/models/ctm_st6/ctm_st6_variante.vmdl";
         string Custom = string.IsNullOrEmpty(CFG.HumandefaultModel) ? Default : CFG.HumandefaultModel;
 
-        pawn.SetModel(Custom);
+        _helpers.SetPlayerModelFixed(pawn, Custom);
 
         var maxHealth = CFG.HumanMaxHealth;
         pawn.MaxHealth = maxHealth;
@@ -374,7 +374,7 @@ public partial class HZPServices
             string path = Zclass.Models.ModelPath;
             _core.Scheduler.NextWorldUpdate(() =>
             {
-                pawn.SetModel(path);
+                _helpers.SetPlayerModelFixed(pawn, path);
             });
             
             _helpers.DropAllWeapon(zombie);

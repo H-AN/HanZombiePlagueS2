@@ -721,7 +721,7 @@ public partial class HZPServices
 
         _core.Scheduler.NextWorldUpdate(() =>
         {
-            pawn.SetModel(model);
+            _helpers.SetPlayerModelFixed(pawn, model);
             _helpers.SetGlow(player, 0, 0, 255, 255);
         });
 
@@ -777,7 +777,7 @@ public partial class HZPServices
 
         _core.Scheduler.NextWorldUpdate(() =>
         {
-            pawn.SetModel(model);
+            _helpers.SetPlayerModelFixed(pawn, model);
             _helpers.SetGlow(player, 255, 230, 140, 255);
         });
 

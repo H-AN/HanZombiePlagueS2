@@ -12,7 +12,7 @@ namespace HanZombiePlagueS2;
 
 [PluginMetadata(
     Id = "HanZombiePlagueS2",
-    Version = "1.0.2",
+    Version = "1.0.3",
     Name = "CS2 僵尸瘟疫 for Sw2/CS2 ZombiePlague for Sw2",
     Author = "H-AN",
     Description = "CS2 僵尸瘟疫 SW2版本 CS2 ZombiePlague for SW2.")]
