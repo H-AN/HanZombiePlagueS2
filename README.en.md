@@ -22,7 +22,17 @@
   <span>(The best AI model provider, click the icon to visit the official website.)</span>
 </div>
 
+---
+
+如果你喜欢这个插件,可以用以下方式支持我,感谢!
+
+If you like this plugin, you can support me in the following ways. Thank you!
+
+[![ko-fi](https://github.com/user-attachments/assets/3c01a28f-efe2-48af-9385-cef3a99fbb8c)](https://www.ifdian.net/a/XMHHAN)
+[![paypal](https://github.com/user-attachments/assets/da293573-12c8-40bc-b956-d562cd46d4ae)](https://www.paypal.com/paypalme/XMHHAN)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z31PY52N)
+
+---
 
 ## video
 https://www.youtube.com/watch?v=DVeR5u28M_s
