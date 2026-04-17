@@ -39,16 +39,12 @@ zombie models : ❗Due to copyright restrictions, model examples are no longer p
 
 This plugin is compatible with any character model; please find your own model to use!
 ```
-
 ---
 
-<div align="center">
-  <a href="./README.en.md"><img src="https://flagcdn.com/48x36/gb.png" alt="English" width="48" height="36" /> <strong>English</strong></a>  
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="./README.md"><img src="https://flagcdn.com/48x36/cn.png" alt="中文" width="48" height="36" /> <strong>中文版</strong></a>
-</div>
+[![cn](https://flagcdn.com/48x36/cn.png)中文版](./README.md) 
+[![en](https://flagcdn.com/48x36/gb.png)English](./README.en.md)
 
-<hr>
+---
 
 # Han Zombie Plague S2
 
