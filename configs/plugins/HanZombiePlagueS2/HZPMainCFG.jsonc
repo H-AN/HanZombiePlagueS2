@@ -43,7 +43,7 @@
 		"SurvivorDamage": 5.0,
 		"SurvivorWeapon": "weapon_m249",
 		"CustomWeaponName": "幸存者M249",
-		"ModelsPath": "agents/models/tm_professional/tm_professional_varh.vmdl",
+		"ModelsPath": "", //Please do not use Valve's official models, as they may cause player clients to crash. Please use the latest version of AG2 to customize your character models.
 		"EnableInfiniteClipMode": false,
 		"ZombieCanReborn": false
 	},
@@ -87,7 +87,7 @@
 		"SniperDamage": 10.0,
 		"SniperWeapon": "weapon_awp",
 		"CustomWeaponName": "狙击英雄AWP",
-		"ModelsPath": "agents/models/tm_professional/tm_professional_varj.vmdl",
+		"ModelsPath": "",//Please do not use Valve's official models, as they may cause player clients to crash. Please use the latest version of AG2 to customize your character models.
 		"EnableInfiniteClipMode": false,
 		"ZombieCanReborn": true
 	},
@@ -112,11 +112,11 @@
 		"HeroSpeed": 3.0,
 		"HeroGravity": 0.4,
 		"HeroDamage": 50.0,
-		"ModelsPath": "agents/models/ctm_gendarmerie/ctm_gendarmerie_variantd.vmdl",
+		"ModelsPath": "",//Please do not use Valve's official models, as they may cause player clients to crash. Please use the latest version of AG2 to customize your character models.
 		"EnableInfiniteClipMode": false,
 		"ZombieCanReborn": true
 	},
-	"HumandefaultModel": "agents/models/ctm_st6/ctm_st6_variante.vmdl",
+	"HumandefaultModel": "",//Please do not use Valve's official models, as they may cause player clients to crash. Please use the latest version of AG2 to customize your character models.
 	"HumanMaxHealth": 225,
 	"HumanInitialSpeed": 1.0,
 	"HumanInitialGravity": 0.8,
@@ -140,6 +140,7 @@
 	"AddHealthSound": "HealthShot.Pickup",
 	"FireGrenade": true,
 	"SpawnGiveFireGrenade": true,
+	"SpawnGiveSpecialGrenadesToBots": true,
 	"FireGrenadeRange": 300.0,
 	"FireGrenadeDmg": 500.0,
 	"FireDmg": 10.0,
