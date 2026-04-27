@@ -12,7 +12,7 @@ namespace HanZombiePlagueS2;
 
 [PluginMetadata(
     Id = "HanZombiePlagueS2",
-    Version = "1.1.0",
+    Version = "1.2.0",
     Name = "CS2 僵尸瘟疫 for Sw2/CS2 ZombiePlague for Sw2",
     Author = "H-AN",
     Description = "CS2 僵尸瘟疫 SW2版本 CS2 ZombiePlague for SW2.")]
@@ -26,6 +26,7 @@ public partial class HanZombiePlagueS2(ISwiftlyCore core) : BasePlugin(core)
     private HZPGlobals _Globals = null!;
     private HZPEvents _Events = null!;
     private HZPCommands _Commands = null!;
+    private HZPServices _Services = null!;
 
     public override void ConfigureSharedInterface(IInterfaceManager interfaceManager)
     {
@@ -102,6 +103,7 @@ public partial class HanZombiePlagueS2(ISwiftlyCore core) : BasePlugin(core)
         _Globals = ServiceProvider.GetRequiredService<HZPGlobals>();
         _Events = ServiceProvider.GetRequiredService<HZPEvents>();
         _Commands = ServiceProvider.GetRequiredService<HZPCommands>();
+        _Services = ServiceProvider.GetRequiredService<HZPServices>();
 
         var ZriotCFGMonitor = ServiceProvider.GetRequiredService<IOptionsMonitor<HZPMainCFG>>();
         _HZPMainCFG = ZriotCFGMonitor.CurrentValue;
@@ -120,6 +122,7 @@ public partial class HanZombiePlagueS2(ISwiftlyCore core) : BasePlugin(core)
 
     public override void Unload()
     {
+        _Services?.ResetPluginRuntimeState();
         _apiInstance!.Dispose();
         ServiceProvider!.Dispose();
     }

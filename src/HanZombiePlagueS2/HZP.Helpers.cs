@@ -36,6 +36,98 @@ public partial class HZPHelpers
         _globals = globals;
     }
 
+    public int GetCurrentRoundGeneration()
+    {
+        return _globals.RoundGeneration;
+    }
+
+    public int AdvanceRoundGeneration()
+    {
+        _globals.RoundGeneration++;
+        return _globals.RoundGeneration;
+    }
+
+    public bool IsRoundGenerationCurrent(int expectedRoundGeneration)
+    {
+        return expectedRoundGeneration == _globals.RoundGeneration;
+    }
+
+    public bool TryResolveCurrentPlayer(int playerId, ulong expectedSessionId, int expectedRoundGeneration, out IPlayer player, bool requireAlive = false)
+    {
+        player = null!;
+
+        if (!IsRoundGenerationCurrent(expectedRoundGeneration))
+            return false;
+
+        var currentPlayer = _core.PlayerManager.GetPlayer(playerId);
+        if (currentPlayer == null || !currentPlayer.IsValid || !_core.PlayerManager.IsPlayerOnline(playerId))
+            return false;
+
+        if (expectedSessionId != 0 && currentPlayer.SessionId != expectedSessionId)
+            return false;
+
+        if (requireAlive)
+        {
+            var controller = currentPlayer.Controller;
+            if (controller == null || !controller.IsValid || controller.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+                return false;
+        }
+
+        player = currentPlayer;
+        return true;
+    }
+
+    public bool TryResolveCurrentPlayerPawn(int playerId, ulong expectedSessionId, int expectedRoundGeneration, out IPlayer player, out CCSPlayerPawn pawn, bool requireAlive = false)
+    {
+        player = null!;
+        pawn = null!;
+
+        if (!TryResolveCurrentPlayer(playerId, expectedSessionId, expectedRoundGeneration, out player, requireAlive))
+            return false;
+
+        var currentPawn = player.PlayerPawn;
+        if (currentPawn == null || !currentPawn.IsValid)
+            return false;
+
+        if (requireAlive && currentPawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+            return false;
+
+        pawn = currentPawn;
+        return true;
+    }
+
+    public void RunNextWorldUpdateForPlayer(int playerId, ulong expectedSessionId, int expectedRoundGeneration, Action<IPlayer, CCSPlayerPawn> action, bool requireAlive = false)
+    {
+        _core.Scheduler.NextWorldUpdate(() =>
+        {
+            if (!TryResolveCurrentPlayerPawn(playerId, expectedSessionId, expectedRoundGeneration, out var currentPlayer, out var currentPawn, requireAlive))
+                return;
+
+            action(currentPlayer, currentPawn);
+        });
+    }
+
+    private bool TryGetPlayerIdentity(CCSPlayerPawn pawn, out int playerId, out ulong sessionId)
+    {
+        playerId = 0;
+        sessionId = 0;
+
+        if (pawn == null || !pawn.IsValid)
+            return false;
+
+        var controller = pawn.Controller.Value?.As<CCSPlayerController>();
+        if (controller == null || !controller.IsValid)
+            return false;
+
+        var player = _core.PlayerManager.GetPlayer((int)(controller.Index - 1));
+        if (player == null || !player.IsValid)
+            return false;
+
+        playerId = player.PlayerID;
+        sessionId = player.SessionId;
+        return true;
+    }
+
     public int? ServerPlayerCount()
     {
         var allplayer = _core.PlayerManager.GetAllPlayers();
@@ -211,6 +303,13 @@ public partial class HZPHelpers
             if (player == null || !player.IsValid)
                 continue;
 
+            var pawn = player.PlayerPawn;
+            if (pawn == null || !pawn.IsValid)
+                continue;
+
+            if (pawn.TeamNum == 3)
+                continue;
+
             player.SwitchTeam(Team.CT);
         }
     }
@@ -282,7 +381,7 @@ public partial class HZPHelpers
                 weapon.AcceptInput("ChangeSubclass", "507");
                 weapon.AttributeManager.Item.Initialized = true;
                 weapon.AttributeManager.Item.ItemDefinitionIndex = 507;
-                weapon.SetModel("");
+                //weapon.SetModel("");
                 weapon.AttributeManager.Item.CustomName = T(player, "ZombieClaw");
                 weapon.AttributeManager.Item.CustomNameOverride = T(player, "ZombieClaw");
                 weapon.AttributeManager.Item.CustomNameUpdated();
@@ -351,32 +450,28 @@ public partial class HZPHelpers
         if (player == null || !player.IsValid)
             return;
 
-        var controller = player.Controller;
-        if (controller == null || !controller.IsValid)
-            return;
+        var playerId = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = GetCurrentRoundGeneration();
 
-        var pawn = player.PlayerPawn;
-        if (pawn == null || !pawn.IsValid)
-            return;
+        RemoveGlow(playerId);
 
-        CBaseModelEntity modelRelay = _core.EntitySystem.CreateEntity<CBaseModelEntity>();
-        CBaseModelEntity modelGlow = _core.EntitySystem.CreateEntity<CBaseModelEntity>();
-        if (modelRelay == null || !modelRelay.IsValidEntity || !modelRelay.IsValid ||
-            modelGlow == null || !modelGlow.IsValidEntity || !modelGlow.IsValid)
-            return;
-
-        var modelRelayHandle = _core.EntitySystem.GetRefEHandle(modelRelay);
-        var modelGlowHandle = _core.EntitySystem.GetRefEHandle(modelGlow);
-        if (!modelRelayHandle.IsValid || !modelGlowHandle.IsValid)
-            return;
-
-
-        string modelName = pawn.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName;
-        if (string.IsNullOrEmpty(modelName))
-            return;
-
-        _core.Scheduler.NextWorldUpdate(() =>
+        RunNextWorldUpdateForPlayer(playerId, sessionId, roundGeneration, (currentPlayer, currentPawn) =>
         {
+            string modelName = currentPawn.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName;
+            if (string.IsNullOrEmpty(modelName))
+                return;
+
+            CBaseModelEntity modelRelay = _core.EntitySystem.CreateEntity<CBaseModelEntity>();
+            CBaseModelEntity modelGlow = _core.EntitySystem.CreateEntity<CBaseModelEntity>();
+            if (modelRelay == null || !modelRelay.IsValidEntity || !modelRelay.IsValid ||
+                modelGlow == null || !modelGlow.IsValidEntity || !modelGlow.IsValid)
+                return;
+
+            var modelRelayHandle = _core.EntitySystem.GetRefEHandle(modelRelay);
+            var modelGlowHandle = _core.EntitySystem.GetRefEHandle(modelGlow);
+            if (!modelRelayHandle.IsValid || !modelGlowHandle.IsValid)
+                return;
 
             modelRelay.CBodyComponent!.SceneNode!.Owner!.Entity!.Flags &= unchecked((uint)~(1 << 2));
             modelRelay.SetModel(modelName);
@@ -395,48 +490,49 @@ public partial class HZPHelpers
             modelGlow.Glow.GlowType = 3;
             modelGlow.Glow.GlowRangeMin = 100;
 
-
-            modelRelay.AcceptInput("FollowEntity", "!activator", pawn, modelRelay);
+            modelRelay.AcceptInput("FollowEntity", "!activator", currentPawn, modelRelay);
             modelGlow.AcceptInput("FollowEntity", "!activator", modelRelay, modelGlow);
 
-        });
-
-        _globals.GlowEntity.Add(controller, new GlowEntity()
-        {
-            Glow = modelGlow,
-            Relay = modelRelay
-        });
+            _globals.GlowEntity[playerId] = new GlowEntity
+            {
+                SessionId = currentPlayer.SessionId,
+                GlowHandle = modelGlowHandle,
+                RelayHandle = modelRelayHandle
+            };
+        }, requireAlive: true);
     }
 
     public void RemoveGlow(IPlayer player)
     {
-        if (player == null || !player.IsValid || !_core.PlayerManager.IsPlayerOnline(player.PlayerID))
+        if (player == null || !player.IsValid)
             return;
 
-        var controller = player.Controller;
-        if (controller == null || !controller.IsValid)
+        RemoveGlow(player.PlayerID);
+    }
+
+    public void RemoveGlow(int playerId)
+    {
+        if (!_globals.GlowEntity.TryGetValue(playerId, out var glowEntity))
             return;
-        if (_globals.GlowEntity.TryGetValue(controller, out var glowEntity))
+
+        if (glowEntity.RelayHandle.IsValid && glowEntity.RelayHandle.Value != null && glowEntity.RelayHandle.Value.IsValid)
         {
-            if (glowEntity.Relay != null && glowEntity.Relay.IsValid)
-            {
-                var relayHandle = _core.EntitySystem.GetRefEHandle(glowEntity.Relay);
-                if (relayHandle.IsValid && relayHandle.Value != null && relayHandle.Value.IsValid)
-                {
-                    relayHandle.Value.AcceptInput("Kill", 0);
-                }
-            }
+            glowEntity.RelayHandle.Value.AcceptInput("Kill", 0);
+        }
 
-            if (glowEntity.Glow != null && glowEntity.Glow.IsValid)
-            {
-                var glowHandle = _core.EntitySystem.GetRefEHandle(glowEntity.Glow);
-                if (glowHandle.IsValid && glowHandle.Value != null && glowHandle.Value.IsValid)
-                {
-                    glowHandle.Value.AcceptInput("Kill", 0);
-                }
-            }
+        if (glowEntity.GlowHandle.IsValid && glowEntity.GlowHandle.Value != null && glowEntity.GlowHandle.Value.IsValid)
+        {
+            glowEntity.GlowHandle.Value.AcceptInput("Kill", 0);
+        }
 
-            _globals.GlowEntity.Remove(controller);
+        _globals.GlowEntity.Remove(playerId);
+    }
+
+    public void ClearAllGlows()
+    {
+        foreach (var playerId in _globals.GlowEntity.Keys.ToList())
+        {
+            RemoveGlow(playerId);
         }
     }
 
@@ -963,6 +1059,8 @@ public partial class HZPHelpers
         if (pawn == null || !pawn.IsValid) return;
 
         var Id = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = GetCurrentRoundGeneration();
 
         // 合并时间：取最大值
         if (_globals.StopZombieTimers.TryGetValue(Id, out var existing))
@@ -982,14 +1080,17 @@ public partial class HZPHelpers
 
         _core.Scheduler.DelayBySeconds(duration, () =>
         {
-            if (_globals.StopZombieTimers.TryGetValue(Id, out var current) && current <= duration)
-            {
-                _globals.StopZombieTimers.Remove(Id);
-                var moveType = MoveType_t.MOVETYPE_WALK;
-                pawn.MoveType = moveType;
-                pawn.ActualMoveType = moveType;
-                pawn.MoveTypeUpdated();
-            }
+            if (!_globals.StopZombieTimers.TryGetValue(Id, out var current) || current > duration)
+                return;
+
+            if (!TryResolveCurrentPlayerPawn(Id, sessionId, roundGeneration, out _, out var currentPawn, requireAlive: true))
+                return;
+
+            _globals.StopZombieTimers.Remove(Id);
+            var moveType = MoveType_t.MOVETYPE_WALK;
+            currentPawn.MoveType = moveType;
+            currentPawn.ActualMoveType = moveType;
+            currentPawn.MoveTypeUpdated();
         });
     }
     public void ClearFreezeStaten(IPlayer player)
@@ -1038,23 +1139,17 @@ public partial class HZPHelpers
     {
         string Default = "characters/models/ctm_st6/ctm_st6_variante.vmdl";
         string Custom = string.IsNullOrEmpty(CFG.HumandefaultModel) ? Default : CFG.HumandefaultModel;
+        int roundGeneration = GetCurrentRoundGeneration();
         var allplayer = _core.PlayerManager.GetAllPlayers();
         foreach (var player in allplayer)
         {
             if (player == null || !player.IsValid)
                 continue;
 
-            _core.Scheduler.NextWorldUpdate(() =>
+            RunNextWorldUpdateForPlayer(player.PlayerID, player.SessionId, roundGeneration, (_, currentPawn) =>
             {
-                if (player != null && player.IsValid)
-                {
-                    var pawn = player.PlayerPawn;
-                    if (pawn != null && pawn.IsValid)
-                    {
-                        SetPlayerModelFixed(pawn, Custom);
-                    }
-                }
-            });
+                SetPlayerModelFixed(currentPawn, Custom);
+            }, requireAlive: true);
 
         }
         
@@ -1179,8 +1274,11 @@ public partial class HZPHelpers
         if (string.IsNullOrWhiteSpace(modelPath))
             return;
 
+        if (!TryGetPlayerIdentity(pawn, out var playerId, out var sessionId))
+            return;
+
         pawn.SetModel(modelPath);
-        FixPlayerModelAnimations(pawn);
+        FixPlayerModelAnimations(playerId, sessionId, GetCurrentRoundGeneration(), pawn.AbsVelocity);
     }
 
     public void FixPlayerModelAnimations(CCSPlayerPawn pawn)
@@ -1188,29 +1286,32 @@ public partial class HZPHelpers
         if (pawn == null || !pawn.IsValid)
             return;
 
-        if (pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+        if (!TryGetPlayerIdentity(pawn, out var playerId, out var sessionId))
             return;
 
-        var originalVelocity = pawn.AbsVelocity;
+        FixPlayerModelAnimations(playerId, sessionId, GetCurrentRoundGeneration(), pawn.AbsVelocity);
+    }
 
-        pawn.Teleport(null, null, new Vector(0, 0, 0));
-        pawn.MoveType = MoveType_t.MOVETYPE_OBSOLETE;
-        pawn.ActualMoveType = MoveType_t.MOVETYPE_OBSOLETE;
-        pawn.MoveTypeUpdated();
+    private void FixPlayerModelAnimations(int playerId, ulong sessionId, int expectedRoundGeneration, Vector originalVelocity)
+    {
+        if (!TryResolveCurrentPlayerPawn(playerId, sessionId, expectedRoundGeneration, out _, out var currentPawn, requireAlive: true))
+            return;
+
+        currentPawn.Teleport(null, null, new Vector(0, 0, 0));
+        currentPawn.MoveType = MoveType_t.MOVETYPE_OBSOLETE;
+        currentPawn.ActualMoveType = MoveType_t.MOVETYPE_OBSOLETE;
+        currentPawn.MoveTypeUpdated();
 
         _core.Scheduler.DelayBySeconds(0.02f, () =>
         {
-            if (pawn == null || !pawn.IsValid)
+            if (!TryResolveCurrentPlayerPawn(playerId, sessionId, expectedRoundGeneration, out _, out var resolvedPawn, requireAlive: true))
                 return;
 
-            if (pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
-                return;
+            resolvedPawn.MoveType = MoveType_t.MOVETYPE_WALK;
+            resolvedPawn.ActualMoveType = MoveType_t.MOVETYPE_WALK;
+            resolvedPawn.MoveTypeUpdated();
 
-            pawn.MoveType = MoveType_t.MOVETYPE_WALK;
-            pawn.ActualMoveType = MoveType_t.MOVETYPE_WALK;
-            pawn.MoveTypeUpdated();
-
-            pawn.Teleport(null, null, originalVelocity);
+            resolvedPawn.Teleport(null, null, originalVelocity);
         });
     }
 

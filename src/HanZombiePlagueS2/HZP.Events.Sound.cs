@@ -28,6 +28,8 @@ public partial class HZPEvents
             return HookResult.Continue;
 
         var Id = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = _helpers.GetCurrentRoundGeneration();
         _globals.IsZombie.TryGetValue(Id, out bool IsZombie);
 
         if (IsZombie)
@@ -45,13 +47,19 @@ public partial class HZPEvents
 
             _core.Scheduler.DelayBySeconds(0.5f, () =>
             {
+                if (!_helpers.TryResolveCurrentPlayer(Id, sessionId, roundGeneration, out var currentPlayer))
+                    return;
+
+                if (!_globals.IsZombie.TryGetValue(Id, out var stillZombie) || !stillZombie)
+                    return;
+
                 var intervalMs = zombie.Stats.IdleInterval;
                 var randomOffset = Random.Shared.Next(0, (int)intervalMs);
 
                 var now = Environment.TickCount / 1000f;
-                _globals.g_ZombieIdleStates[player.PlayerID] = new ZombieIdleState
+                _globals.g_ZombieIdleStates[currentPlayer.PlayerID] = new ZombieIdleState
                 {
-                    PlayerID = player.PlayerID,
+                    PlayerID = currentPlayer.PlayerID,
                     IdleInterval = zombie.Stats.IdleInterval,
                     NextIdleTime = now + intervalMs + randomOffset
                 };
@@ -86,6 +94,8 @@ public partial class HZPEvents
 
 
         var Id = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = _helpers.GetCurrentRoundGeneration();
         _globals.IsZombie.TryGetValue(Id, out bool IsZombie);
 
         if (!IsZombie || pawn.TeamNum == attackerpawn.TeamNum || player == attacker)
@@ -178,14 +188,12 @@ public partial class HZPEvents
             return HookResult.Continue;
 
         var Id = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = _helpers.GetCurrentRoundGeneration();
         _globals.IsZombie.TryGetValue(Id, out bool IsZombie);
 
         var controller = player.Controller;
         if (controller == null || !controller.IsValid)
-            return HookResult.Continue;
-
-        var pawn = player.PlayerPawn;
-        if (pawn == null || !pawn.IsValid)
             return HookResult.Continue;
 
         if (!IsZombie)
@@ -193,22 +201,31 @@ public partial class HZPEvents
 
         var zombieConfig = _zombieClassCFG.CurrentValue;
         var specialConfig = _SpecialClassCFG.CurrentValue;
-        var zombie = _zombieState.GetZombieClass(Id, zombieConfig.ZombieClassList, specialConfig.SpecialClassList);
-        if (zombie == null)
-            return HookResult.Continue;
-
         if (!_helpers.IsPlayerUsingKnife(controller))
             return HookResult.Continue;
 
 
         _globals.InSwing[player.PlayerID] = false;
-        Task.Run(async () =>
+        _core.Scheduler.DelayBySeconds(0.05f, () =>
         {
-            await Task.Delay(50);
-            if (!_globals.InSwing[player.PlayerID])
-            {
-                _service.PlayerSelectSoundtoEntity(player, zombie.Sounds.SwingSound , zombie.Stats.ZombieSoundVolume);
-            }
+            if (!_helpers.TryResolveCurrentPlayer(Id, sessionId, roundGeneration, out var currentPlayer))
+                return;
+
+            if (_globals.InSwing[Id])
+                return;
+
+            var currentController = currentPlayer.Controller;
+            if (currentController == null || !currentController.IsValid || !_helpers.IsPlayerUsingKnife(currentController))
+                return;
+
+            if (!_globals.IsZombie.TryGetValue(Id, out var stillZombie) || !stillZombie)
+                return;
+
+            var currentZombie = _zombieState.GetZombieClass(Id, zombieConfig.ZombieClassList, specialConfig.SpecialClassList);
+            if (currentZombie == null)
+                return;
+
+            _service.PlayerSelectSoundtoEntity(currentPlayer, currentZombie.Sounds.SwingSound, currentZombie.Stats.ZombieSoundVolume);
         });
 
         return HookResult.Continue;

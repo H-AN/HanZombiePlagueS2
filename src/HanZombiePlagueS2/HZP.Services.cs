@@ -50,6 +50,105 @@ public partial class HZPServices
         _api = api;
     }
 
+    public int BeginRoundGeneration()
+    {
+        return _helpers.GetCurrentRoundGeneration();
+    }
+
+    public int ResetRoundRuntimeStateImmediate()
+    {
+        int cleanupGeneration = _helpers.AdvanceRoundGeneration();
+
+        _globals.SafeRoundStart = false;
+        _globals.GameStart = false;
+        _globals.GameInfiniteClipMode = false;
+        _globals.IsheroSetup = false;
+        _globals.Countdown = 0;
+        _globals.RoundVoxGroup = null;
+
+        _globals.g_hCountdown?.Cancel();
+        _globals.g_hCountdown = null;
+
+        _globals.g_hRoundEndTimer?.Cancel();
+        _globals.g_hRoundEndTimer = null;
+
+        _globals.g_IdleTimer?.Cancel();
+        _globals.g_IdleTimer = null;
+
+        _globals.g_ZombieRegenTimer?.Cancel();
+        _globals.g_ZombieRegenTimer = null;
+
+        _globals.g_hAmbMusic?.Cancel();
+        _globals.g_hAmbMusic = null;
+
+        StopAssassinTimer();
+        _helpers.ClearAllBurns();
+        _helpers.ClearAllLights();
+        _helpers.ClearAllGlows();
+
+        foreach (var player in _core.PlayerManager.GetAllPlayers())
+        {
+            if (player == null || !player.IsValid)
+                continue;
+
+            _helpers.ClearFreezeStaten(player);
+            _helpers.SetUnInvisibility(player);
+        }
+
+        _globals.IsZombie.Clear();
+        _globals.IsMother.Clear();
+        _globals.IsSurvivor.Clear();
+        _globals.IsSniper.Clear();
+        _globals.IsNemesis.Clear();
+        _globals.IsAssassin.Clear();
+        _globals.IsHero.Clear();
+
+        _globals.ScbaSuit.Clear();
+        _globals.GodState.Clear();
+        _globals.InfiniteAmmoState.Clear();
+
+        _globals.g_ZombieIdleStates.Clear();
+        _globals.g_ZombieRegenStates.Clear();
+        _globals.g_IsInvisible.Clear();
+        _globals.ThrowerIsZombie.Clear();
+        _globals.StopZombieTimers.Clear();
+        _globals.jumpBoostState.Clear();
+
+        Array.Clear(_globals.InSwing, 0, _globals.InSwing.Length);
+
+        return cleanupGeneration;
+    }
+
+    public void ResetRoundRuntimeStateDeferredVisuals(int expectedRoundGeneration)
+    {
+        _core.Scheduler.DelayBySeconds(2.0f, () =>
+        {
+            if (!_helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
+                return;
+
+            foreach (var player in _core.PlayerManager.GetAllPlayers())
+            {
+                if (player == null || !player.IsValid)
+                    continue;
+
+                player.SwitchTeam(Team.CT);
+                _helpers.ChangeKnife(player, false, false);
+                _helpers.SetFov(player, 90);
+            }
+        });
+    }
+
+    public void ResetMapRuntimeState()
+    {
+        ResetRoundRuntimeStateImmediate();
+        _globals.spawnCache.Clear();
+    }
+
+    public void ResetPluginRuntimeState()
+    {
+        ResetMapRuntimeState();
+    }
+
     public void SelectMotherZombie(int count)
     {
         var allplayer = _core.PlayerManager.GetAllPlayers();
@@ -356,6 +455,8 @@ public partial class HZPServices
             //_logger.LogInformation($"生成丧尸 {Zclass.Name}");
 
             var Id = zombie.PlayerID;
+            var sessionId = zombie.SessionId;
+            var roundGeneration = _helpers.GetCurrentRoundGeneration();
 
             _helpers.RemoveSHumanClass(Id);
 
@@ -372,10 +473,10 @@ public partial class HZPServices
             _zombieState.SetPlayerZombieClass(Id, Zclass.Name);
 
             string path = Zclass.Models.ModelPath;
-            _core.Scheduler.NextWorldUpdate(() =>
+            _helpers.RunNextWorldUpdateForPlayer(Id, sessionId, roundGeneration, (_, currentPawn) =>
             {
-                _helpers.SetPlayerModelFixed(pawn, path);
-            });
+                _helpers.SetPlayerModelFixed(currentPawn, path);
+            }, requireAlive: true);
             
             _helpers.DropAllWeapon(zombie);
 
@@ -439,7 +540,7 @@ public partial class HZPServices
     }
 
 
-    public void SetRoundEndTime()
+    public void SetRoundEndTime(int expectedRoundGeneration)
     {
         var cvar = _core.ConVar.Find<float>("mp_roundtime");
         float roundSeconds = (cvar?.Value ?? 3) * 60f;
@@ -448,8 +549,12 @@ public partial class HZPServices
 
         _globals.g_hRoundEndTimer = _core.Scheduler.DelayBySeconds(roundSeconds, () =>
         {
+            if (!_helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
+                return;
+
             FakeHumanWins();
         });
+        _core.Scheduler.StopOnMapChange(_globals.g_hRoundEndTimer);
     }
 
     public void CreateFakeKill(IPlayer attacker, IPlayer victim, bool grenade)
@@ -485,8 +590,11 @@ public partial class HZPServices
         }
     }
 
-    public void Round_Countdown()
+    public void Round_Countdown(int expectedRoundGeneration)
     {
+        if (!_helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
+            return;
+
         var CFG = _mainCFG.CurrentValue;
         int currentDisplay = _globals.Countdown;
 
@@ -532,7 +640,7 @@ public partial class HZPServices
             }
             _core.Scheduler.DelayBySeconds(1.0f, () => 
             {
-                if (_globals.GameStart)
+                if (_globals.GameStart && _helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
                 {
                     CheckRoundWinConditions();
                 }
@@ -577,6 +685,9 @@ public partial class HZPServices
 
     public void CheckRoundWinConditions()
     {
+        if (!_globals.GameStart)
+            return;
+
         var allPlayers = _core.PlayerManager.GetAlive();
         int zombieCount = 0;
         int humanCount = 0;
@@ -607,12 +718,18 @@ public partial class HZPServices
             FakeZombieWins();
     }
 
-    public void ZombieRegenTimer()
+    public void ZombieRegenTimer(int expectedRoundGeneration)
     {
         _globals.g_ZombieRegenTimer?.Cancel();
         _globals.g_ZombieRegenTimer = null;
-        _globals.g_ZombieRegenTimer = _core.Scheduler.RepeatBySeconds(0.2f, () =>
+        CancellationTokenSource? regenTimer = null;
+        regenTimer = _core.Scheduler.RepeatBySeconds(0.2f, () =>
         {
+            if (!_helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
+            {
+                regenTimer?.Cancel();
+                return;
+            }
 
             int now = Environment.TickCount / 1000;
             var allalive = _core.PlayerManager.GetAlive();
@@ -665,17 +782,25 @@ public partial class HZPServices
                 }
             }
         });
+        _globals.g_ZombieRegenTimer = regenTimer;
 
         _core.Scheduler.StopOnMapChange(_globals.g_ZombieRegenTimer);
     }
 
-    public void GlobalIdleTimer()
+    public void GlobalIdleTimer(int expectedRoundGeneration)
     {
         _globals.g_IdleTimer?.Cancel();
         _globals.g_IdleTimer = null;
 
-        _globals.g_IdleTimer = _core.Scheduler.RepeatBySeconds(0.1f, () =>
+        CancellationTokenSource? idleTimer = null;
+        idleTimer = _core.Scheduler.RepeatBySeconds(0.1f, () =>
         {
+            if (!_helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
+            {
+                idleTimer?.Cancel();
+                return;
+            }
+
             int now = Environment.TickCount / 1000;
             var allalive = _core.PlayerManager.GetAlive();
             foreach (var player in allalive)
@@ -718,6 +843,7 @@ public partial class HZPServices
 
             }
         });
+        _globals.g_IdleTimer = idleTimer;
 
         _core.Scheduler.StopOnMapChange(_globals.g_IdleTimer);
     }
@@ -764,6 +890,12 @@ public partial class HZPServices
 
     public void GiveSpawnGrenade(IPlayer player, HZPMainCFG CFG)
     {
+        if (player == null || !player.IsValid)
+            return;
+
+        if (player.IsFakeClient && !CFG.SpawnGiveSpecialGrenadesToBots)
+            return;
+
         if (CFG.SpawnGiveFireGrenade) 
             _helpers.GiveFireGrenade(player);
 

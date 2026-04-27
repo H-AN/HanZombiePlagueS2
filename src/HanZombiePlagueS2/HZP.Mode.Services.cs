@@ -461,10 +461,12 @@ public partial class HZPServices
             };
             posszombie(player, zombieClass, true);
 
-            _core.Scheduler.NextWorldUpdate(() => 
+            var sessionId = player.SessionId;
+            var roundGeneration = _helpers.GetCurrentRoundGeneration();
+            _helpers.RunNextWorldUpdateForPlayer(Id, sessionId, roundGeneration, (currentPlayer, _) => 
             {
-                _helpers.SetGlow(player, 255, 0, 0, 255);
-            });
+                _helpers.SetGlow(currentPlayer, 255, 0, 0, 255);
+            }, requireAlive: true);
             
 
             _helpers.SendChatToAllT("GameInfoBecomeNemesis", player.Name);
@@ -538,15 +540,23 @@ public partial class HZPServices
 
     }
 
-    public void StartAssassinInvisibilityTimer(float configDist)
+    public void StartAssassinInvisibilityTimer(float configDist, int expectedRoundGeneration)
     {
-        if (_globals.AssassinTimer != null)
-            return;
+        _globals.AssassinTimer?.Cancel();
+        _globals.AssassinTimer = null;
 
-        _globals.AssassinTimer = _core.Scheduler.RepeatBySeconds(0.2f, () =>
+        CancellationTokenSource? assassinTimer = null;
+        assassinTimer = _core.Scheduler.RepeatBySeconds(0.2f, () =>
         {
+            if (!_helpers.IsRoundGenerationCurrent(expectedRoundGeneration))
+            {
+                assassinTimer?.Cancel();
+                return;
+            }
+
             AssassinInvisibilityTick(configDist);
         });
+        _globals.AssassinTimer = assassinTimer;
 
         _core.Scheduler.StopOnMapChange(_globals.AssassinTimer);
     }
@@ -686,6 +696,8 @@ public partial class HZPServices
             return;
 
         var Id = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = _helpers.GetCurrentRoundGeneration();
 
         _globals.IsZombie.TryGetValue(Id, out bool IsZombie);
         if (IsZombie)
@@ -719,11 +731,11 @@ public partial class HZPServices
 
         string model = isSurvivor ? config.Survivor.ModelsPath: config.Sniper.ModelsPath;
 
-        _core.Scheduler.NextWorldUpdate(() =>
+        _helpers.RunNextWorldUpdateForPlayer(Id, sessionId, roundGeneration, (currentPlayer, currentPawn) =>
         {
-            _helpers.SetPlayerModelFixed(pawn, model);
-            _helpers.SetGlow(player, 0, 0, 255, 255);
-        });
+            _helpers.SetPlayerModelFixed(currentPawn, model);
+            _helpers.SetGlow(currentPlayer, 0, 0, 255, 255);
+        }, requireAlive: true);
 
         int Health = isSurvivor ? config.Survivor.SurvivorHealth : config.Sniper.SniperHealth;
         pawn.MaxHealth = Health;
@@ -747,6 +759,8 @@ public partial class HZPServices
             return;
 
         var Id = player.PlayerID;
+        var sessionId = player.SessionId;
+        var roundGeneration = _helpers.GetCurrentRoundGeneration();
 
         _globals.IsZombie.TryGetValue(Id, out bool IsZombie);
         if (IsZombie)
@@ -775,11 +789,11 @@ public partial class HZPServices
 
         string model = config.Hero.ModelsPath;
 
-        _core.Scheduler.NextWorldUpdate(() =>
+        _helpers.RunNextWorldUpdateForPlayer(Id, sessionId, roundGeneration, (currentPlayer, currentPawn) =>
         {
-            _helpers.SetPlayerModelFixed(pawn, model);
-            _helpers.SetGlow(player, 255, 230, 140, 255);
-        });
+            _helpers.SetPlayerModelFixed(currentPawn, model);
+            _helpers.SetGlow(currentPlayer, 255, 230, 140, 255);
+        }, requireAlive: true);
 
         int Health = config.Hero.HeroHealth;
         pawn.MaxHealth = Health;

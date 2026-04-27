@@ -108,6 +108,9 @@ public class HZPCommands
         _core.Engine.ExecuteCommand($"mp_roundtime_defuse {CFG.RoundTime}");
         _core.Engine.ExecuteCommand($"mp_roundtime {CFG.RoundTime}");
         _core.Engine.ExecuteCommand("mp_give_player_c4 0");
+        _core.Engine.ExecuteCommand("mp_autoteambalance 0");
+        _core.Engine.ExecuteCommand("mp_limitteams 0");
+        _core.Engine.ExecuteCommand("sv_legacy_jump 1");
 
     }
 
@@ -127,6 +130,9 @@ public class HZPCommands
         _core.Engine.ExecuteCommand("mp_round_restart_delay 0");
         _core.Engine.ExecuteCommand("mp_autoteambalance 0");
         _core.Engine.ExecuteCommand("mp_startmoney 16000");
+        _core.Engine.ExecuteCommand("mp_autoteambalance 0");
+        _core.Engine.ExecuteCommand("mp_limitteams 0");
+        _core.Engine.ExecuteCommand("sv_legacy_jump 1");
     }
     public void Command()
     {

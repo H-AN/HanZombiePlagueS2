@@ -133,6 +133,7 @@ public class HZPMainCFG
     public string AddHealthSound { get; set; } = string.Empty;
     public bool FireGrenade { get; set; } = true;
     public bool SpawnGiveFireGrenade { get; set; } = true;
+    public bool SpawnGiveSpecialGrenadesToBots { get; set; } = false;
     public float FireGrenadeRange { get; set; } = 300.0f;
     public float FireGrenadeDmg { get; set; } = 500f;
     public float FireDmg { get; set; } = 5f;

@@ -182,7 +182,7 @@ public partial class HanZombiePlagueAPI : IHanZombiePlagueAPI, IDisposable
      * 调用这个方法，触发事件
      * 让外部插件知道玩家改了偏好，可以存数据库
     */
-    private Action<ulong, string>? OnPreferenceChanged;
+    private Action<ulong, string?>? OnPreferenceChanged;
 
     public event Action<ulong, string?>? HZP_OnPreferenceChanged
     {

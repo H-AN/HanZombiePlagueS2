@@ -14,6 +14,7 @@ public class HZPGlobals
     public bool GameInfiniteClipMode { get; set; }
     public bool IsheroSetup { get; set; }
     public int Countdown { get; set; }
+    public int RoundGeneration { get; set; }
 
     public bool[] InSwing { get; } = new bool[65];
 
@@ -44,7 +45,7 @@ public class HZPGlobals
 
     public Dictionary<int, bool> g_IsInvisible = new();
 
-    public Dictionary<CCSPlayerController, GlowEntity> GlowEntity = new Dictionary<CCSPlayerController, GlowEntity>();
+    public Dictionary<int, GlowEntity> GlowEntity = new Dictionary<int, GlowEntity>();
 
     public CancellationTokenSource? AssassinTimer;
 
@@ -109,9 +110,9 @@ public struct SpawnPointData
 
 public class GlowEntity
 {
-    public CBaseModelEntity? Relay { get; set; } = null;
-    public CBaseModelEntity? Glow { get; set; } = null;
-
+    public ulong SessionId { get; set; }
+    public CHandle<CBaseModelEntity> RelayHandle { get; set; }
+    public CHandle<CBaseModelEntity> GlowHandle { get; set; }
 }
 
 
