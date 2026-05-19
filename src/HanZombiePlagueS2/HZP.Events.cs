@@ -831,13 +831,14 @@ public partial class HZPEvents
 
     private void Event_OnEntityTakeDamage(SwiftlyS2.Shared.Events.IOnEntityTakeDamageEvent @event)
     {
+        HandleEntityTakeSoundDamage(@event);
+
         var context = BuildDamageContext(@event);
         if (context == null)
             return;
 
         HandleBaseEntityTakeDamage(@event, context);
         HandleHumanTakeDamage(@event, context);
-        HandleEntityTakeSoundDamage(@event, context);
         HandleInGrenadeDamage(@event, context);
     }
 

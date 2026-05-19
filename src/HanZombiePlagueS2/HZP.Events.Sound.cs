@@ -230,8 +230,12 @@ public partial class HZPEvents
         return HookResult.Continue;
     }
 
-    private void HandleEntityTakeSoundDamage(IOnEntityTakeDamageEvent @event, DamageEventContext context)
+    private void HandleEntityTakeSoundDamage(IOnEntityTakeDamageEvent @event)
     {
+        var victimEntity = @event.Entity;
+        if (victimEntity == null || !victimEntity.IsValid || !victimEntity.IsValidEntity)
+            return;
+
         var attackerHandle = @event.Info.Attacker;
         if (!attackerHandle.IsValid)
             return;
@@ -271,7 +275,7 @@ public partial class HZPEvents
         if (zombie == null)
             return;
 
-        if (context.VictimEntity.DesignerName != "worldent")
+        if (victimEntity.DesignerName != "worldent")
             return;
 
         _globals.InSwing[attackerPlayer.PlayerID] = true;

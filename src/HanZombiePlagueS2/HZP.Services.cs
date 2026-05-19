@@ -393,6 +393,55 @@ public partial class HZPServices
         CheckRoundWinConditions();
     }
 
+    private int ResolveZombieHealth(ZombieClass zombieClass, bool isMother)
+    {
+        if (isMother)
+            return zombieClass.Stats.MotherZombieHealth > 0 ? zombieClass.Stats.MotherZombieHealth : 8000;
+
+        return zombieClass.Stats.Health > 0 ? zombieClass.Stats.Health : 3000;
+    }
+
+    private void ApplyZombieClassState(IPlayer zombie, CCSPlayerPawn pawn, ZombieClass zombieClass, bool isMother, bool spawnEffect)
+    {
+        if (zombie == null || !zombie.IsValid)
+            return;
+
+        if (pawn == null || !pawn.IsValid)
+            return;
+
+        _helpers.SetPlayerModelFixed(pawn, zombieClass.Models.ModelPath);
+
+        _helpers.DropAllWeapon(zombie);
+
+        string customKnifePath = zombieClass.Models.CustomKinfeModelPath;
+        bool customKnife = !string.IsNullOrEmpty(customKnifePath);
+        _helpers.ChangeKnife(zombie, true, customKnife, customKnifePath);
+
+        int zombieHealth = ResolveZombieHealth(zombieClass, isMother);
+        pawn.MaxHealth = zombieHealth;
+        pawn.MaxHealthUpdated();
+        pawn.Health = zombieHealth;
+        pawn.HealthUpdated();
+
+        pawn.ActualGravityScale = zombieClass.Stats.Gravity;
+
+        _helpers.SetFov(zombie, zombieClass.Stats.Fov);
+
+        float zombieSpeed = zombieClass.Stats.Speed > 0 ? zombieClass.Stats.Speed : 1.0f;
+        pawn.VelocityModifier = zombieSpeed;
+        pawn.VelocityModifierUpdated();
+
+        if (!spawnEffect)
+            return;
+
+        var origin = pawn.AbsOrigin;
+        if (origin == null)
+            return;
+
+        Vector offsetPos = new(origin.Value.X, origin.Value.Y, origin.Value.Z + 50);
+        _helpers.CreateParticleAtPos(pawn, offsetPos, "particles/explosions_fx/explosion_hegrenade_water_intial_trail.vpcf");
+    }
+
 
     public void FakeHumanWins()
     {
@@ -472,40 +521,12 @@ public partial class HZPServices
 
             _zombieState.SetPlayerZombieClass(Id, Zclass.Name);
 
-            string path = Zclass.Models.ModelPath;
-            _helpers.RunNextWorldUpdateForPlayer(Id, sessionId, roundGeneration, (_, currentPawn) =>
+            ApplyZombieClassState(zombie, pawn, Zclass, isMother, spawnEffect: true);
+
+            _helpers.RunNextWorldUpdateForPlayer(Id, sessionId, roundGeneration, (currentPlayer, currentPawn) =>
             {
-                _helpers.SetPlayerModelFixed(currentPawn, path);
+                ApplyZombieClassState(currentPlayer, currentPawn, Zclass, isMother, spawnEffect: false);
             }, requireAlive: true);
-            
-            _helpers.DropAllWeapon(zombie);
-
-            bool CustomKinfe = !string.IsNullOrEmpty(Zclass.Models.CustomKinfeModelPath);
-            _helpers.ChangeKnife(zombie, true, CustomKinfe);
-
-
-            int ZHealth;
-            if (isMother)
-            {
-                ZHealth = Zclass.Stats.MotherZombieHealth > 0 ? ZHealth = Zclass.Stats.MotherZombieHealth : ZHealth = 8000;
-            }
-            else
-            {
-                ZHealth = Zclass.Stats.Health > 0 ? ZHealth = Zclass.Stats.Health : ZHealth = 3000;
-            }
-            pawn.MaxHealth = ZHealth;
-            pawn.MaxHealthUpdated();
-            pawn.Health = ZHealth;
-            pawn.HealthUpdated();
-
-            pawn.ActualGravityScale = Zclass.Stats.Gravity;
-
-            int fov = Zclass.Stats.Fov;
-            _helpers.SetFov(zombie, fov);
-
-            float zSpeed = Zclass.Stats.Speed > 0 ? zSpeed = Zclass.Stats.Speed : zSpeed = 1.0f;
-            pawn.VelocityModifier = zSpeed;
-            pawn.VelocityModifierUpdated();
 
             if (Zclass.Stats.EnableRegen)
             {
@@ -518,13 +539,6 @@ public partial class HZPServices
                     NextRegenTime = now + Zclass.Stats.HpRegenSec 
                 };
             }
-
-            var origin = pawn.AbsOrigin;
-            if (origin == null)
-                return;
-
-            Vector offsetPos = new(origin.Value.X, origin.Value.Y, origin.Value.Z + 50);
-            var particle = _helpers.CreateParticleAtPos(pawn, offsetPos, "particles/explosions_fx/explosion_hegrenade_water_intial_trail.vpcf");
             //_logger.LogInformation($"posszombie 完成 [{controller.PlayerName}]");
         }
         catch (Exception ex)

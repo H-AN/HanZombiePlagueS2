@@ -64,14 +64,13 @@ public class HZPZombieClassMenu
 
         RandomButton.Click += async (_, args) =>
         {
-            var clicker = args.Player;
-            if (!clicker.IsValid)
-                return;
+            RunMenuAction(args.Player, clicker =>
+            {
+                if (_api != null)
+                    _api.NotifyUpdatePreferenceFromMenu(clicker.PlayerID, clicker.SteamID, null);
 
-            if (_api != null)
-                _api.NotifyUpdatePreferenceFromMenu(clicker.PlayerID, clicker.SteamID, null);
-
-            clicker.SendMessage(MessageType.Chat, _helpers.T(clicker, "ZClassMenuRandomSelectInfo"));
+                clicker.SendMessage(MessageType.Chat, _helpers.T(clicker, "ZClassMenuRandomSelectInfo"));
+            });
         };
 
         menu.AddOption(RandomButton);
@@ -94,14 +93,13 @@ public class HZPZombieClassMenu
 
                 Button.Click += async (_, args) =>
                 {
-                    var clicker = args.Player;
-                    if (!clicker.IsValid)
-                        return;
+                    RunMenuAction(args.Player, clicker =>
+                    {
+                        if (_api != null)
+                            _api.NotifyUpdatePreferenceFromMenu(clicker.PlayerID, clicker.SteamID, Cfg.Name);
 
-                    if (_api != null)
-                        _api.NotifyUpdatePreferenceFromMenu(clicker.PlayerID, clicker.SteamID, Cfg.Name);
-
-                    clicker.SendMessage(MessageType.Chat, $"{_helpers.T(clicker, "ZClassMenuSelectInfo")} {Cfg.Name}");
+                        clicker.SendMessage(MessageType.Chat, $"{_helpers.T(clicker, "ZClassMenuSelectInfo")} {Cfg.Name}");
+                    });
                 };
 
                 menu.AddOption(Button);
@@ -112,6 +110,15 @@ public class HZPZombieClassMenu
         return menu;
     }
 
-    
+    private void RunMenuAction(IPlayer clicker, Action<IPlayer> action)
+    {
+        _core.Scheduler.NextTick(() =>
+        {
+            if (clicker == null || !clicker.IsValid)
+                return;
+
+            action(clicker);
+        });
+    }
 
 }
