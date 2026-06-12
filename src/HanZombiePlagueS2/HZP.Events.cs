@@ -9,6 +9,7 @@ using Mono.Cecil.Cil;
 using Spectre.Console;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Events;
+using SwiftlyS2.Shared.GameHooks;
 using SwiftlyS2.Shared.GameEventDefinitions;
 using SwiftlyS2.Shared.Helpers;
 using SwiftlyS2.Shared.Misc;
@@ -78,10 +79,10 @@ public partial class HZPEvents
 
         _core.Event.OnClientDisconnected += Event_OnClientDisconnected;
         _core.Event.OnClientConnected += Event_OnClientConnected;
-        _core.Event.OnEntityTakeDamage += Event_OnEntityTakeDamage;
+        _core.GameHooks.Entities.TakeDamage.Pre += Event_OnEntityTakeDamage;
         _core.Event.OnMapLoad += Event_OnMapLoad;
         _core.Event.OnMapUnload += Event_OnMapUnload;
-        _core.Event.OnWeaponServicesCanUseHook += Event_OnWeaponServicesCanUseHook;
+        _core.GameHooks.Weapons.CanUse.Pre += Event_OnWeaponServicesCanUseHook;
         _core.Event.OnPrecacheResource += Event_OnPrecacheResource;
         _core.Event.OnTick += Event_OnTick;
 
@@ -726,23 +727,19 @@ public partial class HZPEvents
 
     }
 
-    public void Event_OnWeaponServicesCanUseHook(IOnWeaponServicesCanUseHookEvent @event)
+    public void Event_OnWeaponServicesCanUseHook(ref CanUseWeaponPreContext ctx)
     {
-        var weapon = @event.Weapon;
-        var weaponName = weapon?.Entity?.DesignerName;
+        var weapon = ctx.Params.Weapon;
+        var weaponName = weapon?.DesignerName;
         var customName = weapon?.AttributeManager.Item.CustomName;
 
-        var pawn = @event.WeaponServices.Pawn;
-        if (pawn == null || !pawn.IsValid)
-            return;
-
-        var player = pawn.ToPlayer();
+        var player = ctx.Params.Player;
         if (player == null || !player.IsValid)
             return;
 
         if (weaponName == "weapon_c4")
         {
-            @event.SetResult(false);
+            BlockWeaponUse(ref ctx);
             return;
         }
 
@@ -757,7 +754,7 @@ public partial class HZPEvents
 
             if (!allowZombieItem)
             {
-                @event.SetResult(false);
+                BlockWeaponUse(ref ctx);
             }
 
             return;
@@ -779,9 +776,15 @@ public partial class HZPEvents
 
             if (!allowHumanGrenade)
             {
-                @event.SetResult(false);
+                BlockWeaponUse(ref ctx);
             }
         }
+    }
+
+    private static void BlockWeaponUse(ref CanUseWeaponPreContext ctx)
+    {
+        ctx.SetReturn(false);
+        ctx.SetHookResult(HookResult.Stop);
     }
     private void Event_OnMapLoad(IOnMapLoadEvent @event)
     {
@@ -813,9 +816,9 @@ public partial class HZPEvents
         public IPlayer VictimPlayer { get; }
     }
 
-    private DamageEventContext? BuildDamageContext(IOnEntityTakeDamageEvent @event)
+    private DamageEventContext? BuildDamageContext(ref TakeDamageEntityPreContext ctx)
     {
-        var victimEntity = @event.Entity;
+        var victimEntity = ctx.Params.Entity;
         if (victimEntity == null || !victimEntity.IsValid || !victimEntity.IsValidEntity)
             return null;
 
@@ -829,22 +832,22 @@ public partial class HZPEvents
         return new DamageEventContext(victimEntity, victimPawn, victimPlayer);
     }
 
-    private void Event_OnEntityTakeDamage(SwiftlyS2.Shared.Events.IOnEntityTakeDamageEvent @event)
+    private void Event_OnEntityTakeDamage(ref TakeDamageEntityPreContext ctx)
     {
-        HandleEntityTakeSoundDamage(@event);
+        HandleEntityTakeSoundDamage(ref ctx);
 
-        var context = BuildDamageContext(@event);
+        var context = BuildDamageContext(ref ctx);
         if (context == null)
             return;
 
-        HandleBaseEntityTakeDamage(@event, context);
-        HandleHumanTakeDamage(@event, context);
-        HandleInGrenadeDamage(@event, context);
+        HandleBaseEntityTakeDamage(ref ctx, context);
+        HandleHumanTakeDamage(ref ctx, context);
+        HandleInGrenadeDamage(ref ctx, context);
     }
 
-    private void HandleBaseEntityTakeDamage(IOnEntityTakeDamageEvent @event, DamageEventContext context)
+    private void HandleBaseEntityTakeDamage(ref TakeDamageEntityPreContext ctx, DamageEventContext context)
     {
-        var attackerHandle = @event.Info.Attacker;
+        var attackerHandle = ctx.Params.Info.Attacker;
         if (!attackerHandle.IsValid)
             return;
 
@@ -869,7 +872,7 @@ public partial class HZPEvents
 
         if (!attackerIsZombie && !victimIsZombie)
         {
-            @event.Info.Damage = 0;
+            ctx.Params.Info.Damage = 0;
         }
         else if (attackerIsZombie && !victimIsZombie)
         {
@@ -881,23 +884,23 @@ public partial class HZPEvents
 
             if (IsHaveScbaSuit)
             {
-                @event.Info.Damage = 0;
+                ctx.Params.Info.Damage = 0;
                 _helpers.RemoveScbaSuit(victimPlayer, CFG.ScbaSuitBrokenSound);
             }
             else if (IsGodState)
             {
-                @event.Info.Damage = 0;
+                ctx.Params.Info.Damage = 0;
             }
             else
             {
-                @event.Info.Damage += zombie.Stats.Damage;
+                ctx.Params.Info.Damage += zombie.Stats.Damage;
             }
         }
         else if (!attackerIsZombie && victimIsZombie)
         {
             if (IsGodState)
             {
-                @event.Info.Damage = 0;
+                ctx.Params.Info.Damage = 0;
             }
         }
     }
@@ -1114,9 +1117,9 @@ public partial class HZPEvents
     }
     
 
-    private void HandleHumanTakeDamage(IOnEntityTakeDamageEvent @event, DamageEventContext context)
+    private void HandleHumanTakeDamage(ref TakeDamageEntityPreContext ctx, DamageEventContext context)
     {
-        var attackerHandle = @event.Info.Attacker;
+        var attackerHandle = ctx.Params.Info.Attacker;
         if (!attackerHandle.IsValid)
             return;
 
@@ -1160,31 +1163,31 @@ public partial class HZPEvents
             var config = _mainCFG.CurrentValue;
             if (attackerIsSurvivor && activeWeapon.DesignerName == config.Survivor.SurvivorWeapon)
             {
-                @event.Info.Damage *= config.Survivor.SurvivorDamage;
+                ctx.Params.Info.Damage *= config.Survivor.SurvivorDamage;
             }
             else if (attackerIsSniper && activeWeapon.DesignerName == config.Sniper.SniperWeapon)
             {
-                @event.Info.Damage *= config.Sniper.SniperDamage;
+                ctx.Params.Info.Damage *= config.Sniper.SniperDamage;
             }
             else if (attackerIsHero)
             {
-                @event.Info.Damage *= config.Hero.HeroDamage;
+                ctx.Params.Info.Damage *= config.Hero.HeroDamage;
             }
 
         }
 
-        var AmmoType = @event.Info.AmmoType;
+        var AmmoType = ctx.Params.Info.AmmoType;
         if(AmmoType == -1)
             return;
 
         float stunTime = CFG.StunZombieTime;
         _helpers.SetZombieFreezeOrStun(victimPlayer, stunTime);
 
-        bool isheadshot = @event.Info.ActualHitGroup == HitGroup_t.HITGROUP_HEAD;
+        bool isheadshot = ctx.Params.Info.ActualHitGroup == HitGroup_t.HITGROUP_HEAD;
 
-        //_logger.LogInformation($"Damage Info - Attacker: {attackerPlayer.Name}, Victim: {victimPlayer.Name}, AmmoType: {@event.Info.AmmoType}, IsHeadshot: {isheadshot}");
+        //_logger.LogInformation($"Damage Info - Attacker: {attackerPlayer.Name}, Victim: {victimPlayer.Name}, AmmoType: {ctx.Params.Info.AmmoType}, IsHeadshot: {isheadshot}");
 
-        var inflictorHandle = @event.Info.Inflictor;
+        var inflictorHandle = ctx.Params.Info.Inflictor;
         if (!inflictorHandle.IsValid)
             return;
 

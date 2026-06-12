@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SwiftlyS2.Shared.Events;
+using SwiftlyS2.Shared.GameHooks;
 using SwiftlyS2.Shared.GameEventDefinitions;
 using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.Players;
@@ -230,13 +231,13 @@ public partial class HZPEvents
         return HookResult.Continue;
     }
 
-    private void HandleEntityTakeSoundDamage(IOnEntityTakeDamageEvent @event)
+    private void HandleEntityTakeSoundDamage(ref TakeDamageEntityPreContext ctx)
     {
-        var victimEntity = @event.Entity;
+        var victimEntity = ctx.Params.Entity;
         if (victimEntity == null || !victimEntity.IsValid || !victimEntity.IsValidEntity)
             return;
 
-        var attackerHandle = @event.Info.Attacker;
+        var attackerHandle = ctx.Params.Info.Attacker;
         if (!attackerHandle.IsValid)
             return;
 
@@ -282,7 +283,7 @@ public partial class HZPEvents
         _service.PlayerSelectSoundtoEntity(attackerPlayer, zombie.Sounds.HitWallSound, zombie.Stats.ZombieSoundVolume);
     }
 
-    private void HandleInGrenadeDamage(IOnEntityTakeDamageEvent @event, DamageEventContext context)
+    private void HandleInGrenadeDamage(ref TakeDamageEntityPreContext ctx, DamageEventContext context)
     {
         var victimPlayer = context.VictimPlayer;
 
@@ -298,14 +299,14 @@ public partial class HZPEvents
         if (zombie == null)
             return;
 
-        if (@event.Info.DamageType == DamageTypes_t.DMG_BURN)
+        if (ctx.Params.Info.DamageType == DamageTypes_t.DMG_BURN)
         {
             if (Random.Shared.Next(0, 10) <= 2) 
             {
                 _service.PlayerSelectSoundtoEntity(victimPlayer, zombie.Sounds.BurnSound, zombie.Stats.ZombieSoundVolume);
             }
         }
-        else if (@event.Info.DamageType == DamageTypes_t.DMG_BLAST)
+        else if (ctx.Params.Info.DamageType == DamageTypes_t.DMG_BLAST)
         {
             _service.PlayerSelectSoundtoEntity(victimPlayer, zombie.Sounds.ExplodeSound, zombie.Stats.ZombieSoundVolume);
         }

@@ -198,7 +198,14 @@ public partial class HZPServices
         if (zombieCount > 0)
         {
             var nemesis = allplayers[0];
-            SetupNemesis(nemesis);
+            var id = nemesis.PlayerID;
+            var sessionId = nemesis.SessionId;
+            var roundGeneration = _helpers.GetCurrentRoundGeneration();
+
+            _helpers.RunNextWorldUpdateForPlayer(id, sessionId, roundGeneration, (currentPlayer, _) =>
+            {
+                SetupNemesis(currentPlayer);
+            }, requireAlive: true);
         }
 
         
@@ -490,6 +497,7 @@ public partial class HZPServices
                     SwingSound = nemesisClass.Sounds.SwingSound
                 }
             };
+            
             posszombie(player, zombieClass, true);
 
             var sessionId = player.SessionId;
