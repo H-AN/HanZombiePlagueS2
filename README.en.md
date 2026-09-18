@@ -34,8 +34,7 @@ If you encounter client crashes, please do not use the official agent model. The
 
 Example Workshop files
 ```
-sound : 3644652779
-zombie models : 3718944950
+3738328082
 
 This plugin requires the latest AG2 character models.
 ```
