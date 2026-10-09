@@ -3,7 +3,6 @@ using System.Security.Principal;
 using HanZombiePlagueS2;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Mono.Cecil.Cil;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Events;
